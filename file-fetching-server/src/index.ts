@@ -1,6 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import csv from 'csv-parser';
 
 const app = express();
 
@@ -18,16 +19,21 @@ app.get("/fetch-file", (req, res) => {
 
     console.log("Trying to read : ", resolvedPath);
 
-    fs.readFile(resolvedPath, "utf-8", (err, data) => {
-        if (err) {
-            console.error("Error reading file : ", err);
-            return res.status(500).json({ error: "Could not read file." });
-        }
+    const rows: Record<string, string>[] = []
 
-        res.json({
-            message: "File fetched successfully.",
-            body: data
+    fs.createReadStream(resolvedPath)
+    .pipe(csv())
+    .on("data", (data) => {rows.push(data)})
+    .on("end", () => {
+        res.status(200).json({
+            message: "CSV parsed successfully",
+            rowCount: rows.length,
+            data: rows
         });
+    })
+    .on("error", (err) => {
+        console.error("Error parsing CSV : ", err);
+        res.status(500).json({ error: "Error parsing CSV file."});
     });
 });
 
