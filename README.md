@@ -1,7 +1,7 @@
 # Hourly Test Tracker
 
 <p align="center">
-  <img src="https://img.shields.io/badge/TypeScript-98.6%25-blue" alt="TypeScript">
+  <img src="https://img.shields.io/badge/TypeScript-96.9%25-blue" alt="TypeScript">
   <img src="https://shields.io/badge/React-18.x-61DAFB" alt="React">
   <img src="https://img.shields.io/badge/Material--UI-5.x-0081CB" alt="MUI">
   <img src="https://img.shields.io/badge/Express.js-000000?logo=express&logoColor=fff&style=flat">
@@ -117,45 +117,257 @@
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/GokulAjithV/hourly-test-tracker.git
-   cd hourly-test-tracker
-   ```
+Here’s a concise doc you can drop into your README.
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+***
 
-### Running the Application
+## How to Run the Application
 
-#### Development Mode (Browser)
+### 1. Run backend (file-fetching-server)
+
+From repo root:
+
 ```bash
-npm start
+cd file-fetching-server
+npm install
+npm run dev   # or npm start (whatever your package.json uses)
 ```
-Opens at `http://localhost:3000`
 
-#### Production Build
+Make sure it logs something like:
+
+```text
+Server running on http://127.0.0.1:3000
+```
+
+### 2. Run frontend (hourly-test-client) in browser
+
+In a second terminal:
+
 ```bash
+cd hourly-test-client
+npm install
+npm run dev   # or npm start
+```
+
+Open the printed URL (usually `http://localhost:5173` for Vite).  
+The UI will talk to the backend at `http://127.0.0.1:3000/api/...` (as configured in your client code).
+
+***
+
+## How to Package as a Desktop App (Electron)
+
+### 0. Pre-req
+
+- Node.js and npm installed
+- Your backend and frontend both working in dev
+
+Big picture:
+
+1. Build the frontend (static files).
+2. Use Electron to load those files.
+3. Start the backend from Electron (or run it separately).
+4. Use `electron-builder` to produce an installer (`.exe`).
+
+***
+
+### 1. Build the frontend
+
+From repo root:
+
+```bash
+cd hourly-test-client
+# ensure vite.config has: base: './'
 npm run build
 ```
-Creates optimized build in `build/` folder.
 
-#### Desktop Application (Electron)
+This creates `hourly-test-client/dist/` with `index.html` and `assets/`.
+
+***
+
+### 2. Set up Electron wrapper
+
+From repo root:
+
 ```bash
-# Install Electron dependencies
-npm install --save-dev electron electron-builder concurrently wait-on cross-env electron-is-dev
-
-# Run in Electron
-npm run electron-dev
-
-# Build standalone app
-npm run electron-build-win  # Windows
-npm run electron-build-mac  # macOS
-npm run electron-build-linux # Linux
+mkdir electron-app
+cd electron-app
+npm init -y
+npm install electron electron-builder
 ```
 
+Create `electron-app/main.js`:
+
+```js
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+
+let mainWindow;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  // Load built frontend
+  mainWindow.loadFile(path.join(__dirname, 'frontend', 'index.html'));
+  mainWindow.setMenuBarVisibility(false);
+}
+
+app.whenReady().then(() => {
+  createWindow();
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+```
+
+Copy the built frontend into Electron:
+
+```bash
+rm -rf frontend
+mkdir frontend
+cp -r ../hourly-test-client/dist/* frontend/
+```
+
+At this stage:
+
+```bash
+npm start   # after adding "start": "electron ." in electron-app/package.json
+```
+
+should open the UI (with backend still running separately on port 3000).
+
+***
+
+### 3. (Optional) Start backend from Electron
+
+If you want one-click start (no separate backend terminal), modify `main.js`:
+
+```js
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+
+let mainWindow;
+let backendProcess;
+
+function startBackend() {
+  const serverPath = path.join(__dirname, 'backend', 'dist', 'index.js'); // compiled JS
+  backendProcess = spawn('node', [serverPath], {
+    env: { ...process.env, PORT: '3000' },
+    shell: true,
+  });
+
+  backendProcess.stdout.on('data', d => console.log(`Backend: ${d}`));
+  backendProcess.stderr.on('data', d => console.error(`Backend Error: ${d}`));
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  mainWindow.loadFile(path.join(__dirname, 'frontend', 'index.html'));
+  mainWindow.setMenuBarVisibility(false);
+}
+
+app.whenReady().then(() => {
+  startBackend();          // start API server
+  setTimeout(createWindow, 2000);  // small delay so backend is ready
+});
+
+app.on('window-all-closed', () => {
+  if (backendProcess) backendProcess.kill();
+  if (process.platform !== 'darwin') app.quit();
+});
+```
+
+To make this work, you need a built backend in `electron-app/backend/dist`:
+
+```bash
+# From repo root
+cd file-fetching-server
+npm run build   # produces dist/
+
+cd ../electron-app
+rm -rf backend
+mkdir -p backend/dist
+cp -r ../file-fetching-server/dist/* backend/dist/
+```
+
+***
+
+### 4. Configure electron-app/package.json
+
+In `electron-app/package.json`:
+
+```json
+{
+  "name": "hourly-test-tracker",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.company.hourlytesttracker",
+    "productName": "Hourly Test Tracker",
+    "files": [
+      "main.js",
+      "frontend/**/*",
+      "backend/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  }
+}
+```
+
+***
+
+### 5. Build the installer
+
+From `electron-app`:
+
+```bash
+npm install   # first time
+npm run build-win
+```
+
+Output will be in `electron-app/dist/`, e.g.:
+
+```text
+dist/Hourly Test Tracker Setup 1.0.0.exe
+```
+
+You can give this `.exe` to users; they install and run it like any normal Windows app (no Node.js required).
+
+***
+
+**Summary**
+
+- Dev mode: run backend + frontend separately.
+- Desktop app: build frontend, (optionally) build backend, wire them via Electron, then run `electron-builder` to produce a single installer.
 ***
 
 ## 📖 Usage Guide
