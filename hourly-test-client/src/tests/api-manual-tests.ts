@@ -3,11 +3,11 @@ import { ApiService } from '../services/api.ts'
 
 const mockEngineeringRequest: EngineeringRequest = {
     paths: [
-        "V:\\Projects-2025\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_1.csv",
-        // "V:\\Projects-2025\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_2.csv",
-        // "V:\\Projects-2025\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_3.csv",
-        // "V:\\Projects-2025\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_4.csv",
-        // "V:\\Projects-2025\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20260102_1.csv"
+        "V:\\workspace\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_1.csv",
+        // "V:\\workspace\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_2.csv",
+        // "V:\\workspace\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_3.csv",
+        // "V:\\workspace\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20250620_4.csv",
+        // "V:\\workspace\\business\\hourly-test-tracker\\test-and-reference-files\\csv-test-files\\TSP_Production_Data_20260102_1.csv"
     ]
 }
 

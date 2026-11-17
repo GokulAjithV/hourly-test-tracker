@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Production Test Analytics Desktop App",
   "main": "main.js",
-  "author": "Gokul Ajith V",
+  "author": "2026",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -15,7 +15,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "csv-parse": "^5.5.0",
-    "express": "^4.18.2",
+    "csv-parser": "^3.2.0",
+    "express": "^5.2.1",
     "tsx": "^4.21.0"
   },
   "devDependencies": {
@@ -30,7 +31,8 @@
     },
     "files": [
       "main.js",
-      "backend/**/*",
+      "backend/dist/**/*",
+      "backend/node_modules/**/*",
       "frontend/**/*",
       "node_modules/**/*"
     ],

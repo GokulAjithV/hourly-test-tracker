@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
 import cors from 'cors';
+import { Readable } from 'stream';
 
 const app = express();
 
@@ -16,20 +17,69 @@ app.use(cors({
 
 const PORT = 3000;
 
+function parseCSVFromString(csvText: string): Promise<Record<string, string>[]> {
+  return new Promise((resolve, reject) => {
+    const results: Record<string, string>[] = [];
+
+    Readable.from([csvText])
+      .pipe(csv())
+      .on('data', (data) => results.push(data))
+      .on('end', () => resolve(results))
+      .on('error', (err) => reject(err));
+  });
+}
+
 function isArray(param: any) {
     return Array.isArray(param)
-}   
+}
 
-function parseCSV(filePath: string): Promise<Record<string, string>[]> {
-    return new Promise((resolve, reject) => {
-        const results: Record<string, string>[] = [];
-        const resolvedFilePath = path.resolve(filePath);
-        fs.createReadStream(resolvedFilePath)
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+type CSVParseOk = { ok: true; path: string; rows: Record<string, string>[] };
+type CSVParseErr = { ok: false; path: string; error: string; code?: string };
+
+async function fileReadable(filePath: string) {
+  // Checks existence + read permission
+  await fs.promises.access(filePath, fs.constants.R_OK);
+}
+
+function parseCSV(filePathOrUrl: string): Promise<Record<string, string>[]> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Case 1: HTTP URL
+      if (isHttpUrl(filePathOrUrl)) {
+        const response = await fetch(filePathOrUrl);
+
+        if (!response.ok) {
+          return reject(
+            new Error(`Failed to download CSV. HTTP ${response.status} ${response.statusText}`)
+          );
+        }
+
+        const csvText = await response.text();
+        const rows = await parseCSVFromString(csvText);
+        return resolve(rows);
+      }
+
+      // Case 2: Local / UNC path
+      const resolvedFilePath = path.resolve(filePathOrUrl);
+
+      // Validate early
+      await fileReadable(resolvedFilePath);
+
+      const results: Record<string, string>[] = [];
+
+      fs.createReadStream(resolvedFilePath)
         .pipe(csv())
-        .on("data", (data) => {results.push(data)})
-        .on("end", () => resolve(results))
-        .on("error", (err) => reject(err));
-    });
+        .on('data', (data) => results.push(data))
+        .on('end', () => resolve(results))
+        .on('error', (err) => reject(err));
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 app.post("/fetch-csvs", async (req, res) => {
@@ -61,7 +111,15 @@ app.post("/fetch-csvs", async (req, res) => {
         console.error("Error processing files: ", err);
         res.status(500).json({ error: "Failed to fetch or parse CSV files"})
     }
-})
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
 
 const server = app.listen(PORT, '127.0.0.1',() => {
     console.log(`Server running at http://127.0.0.1:${PORT}`);

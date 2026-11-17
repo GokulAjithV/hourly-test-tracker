@@ -1,29 +1,25 @@
 // electron-app/main.js
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 
 let mainWindow;
-let backendProcess;
 
+// Start backend server directly in main process
 function startBackend() {
-  // Use tsx to run TypeScript directly
-  const serverPath = path.join(__dirname, 'backend', 'src', 'index.ts');
-  
-  backendProcess = spawn('npx', ['tsx', serverPath], {
-    env: { ...process.env, PORT: '3000' },
-    shell: true
-  });
-
-  backendProcess.stdout.on('data', (data) => {
-    console.log(`Backend: ${data}`);
-  });
-
-  backendProcess.stderr.on('data', (data) => {
-    console.error(`Backend Error: ${data}`);
-  });
-
-  console.log('Backend server started on port 3000');
+  try {
+    const serverPath = path.join(__dirname, 'backend', 'dist', 'index.js');
+    console.log('Loading backend from:', serverPath);
+    
+    // Set the port before requiring the server
+    process.env.PORT = '3000';
+    
+    // Require the backend directly - it will start the server
+    require(serverPath);
+    
+    console.log('Backend server started on port 3000');
+  } catch (error) {
+    console.error('Failed to start backend:', error);
+  }
 }
 
 function createWindow() {
@@ -33,6 +29,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      devTools: true,
     },
   });
 
@@ -46,22 +43,14 @@ function createWindow() {
 
 app.whenReady().then(() => {
   startBackend();
+  // Wait a moment for server to start
   setTimeout(() => {
     createWindow();
-  }, 3000);
+  }, 1000);
 });
 
 app.on('window-all-closed', () => {
-  if (backendProcess) {
-    backendProcess.kill();
-  }
   if (process.platform !== 'darwin') {
     app.quit();
-  }
-});
-
-app.on('quit', () => {
-  if (backendProcess) {
-    backendProcess.kill();
   }
 });
